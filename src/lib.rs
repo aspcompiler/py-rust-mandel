@@ -47,10 +47,10 @@ fn compute_mandelbrot_rs_par<'py>(
 #[pyfunction]
 fn compute_mandelbrot_rs_simd_par<'py>(
     py: Python<'py>,
-    min_x: f64, 
-    max_x: f64, 
-    min_y: f64, 
-    max_y: f64, 
+    min_x: f32, 
+    max_x: f32, 
+    min_y: f32, 
+    max_y: f32, 
     width: usize, 
     height: usize, 
     iters: u32,

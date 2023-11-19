@@ -4,33 +4,32 @@
 use crate::*;
 use packed_simd::*;
 
-type u64s = u64x8;
 type u32s = u32x8;
-type f64s = f64x8;
-type m64s = m64x8;
+type f32s = f32x8;
+type m32s = m32x8;
 
 /// Storage for complex numbers in SIMD format.
 /// The real and imaginary parts are kept in separate registers.
 #[derive(Copy, Clone)]
 struct Complex {
-    real: f64s,
-    imag: f64s,
+    real: f32s,
+    imag: f32s,
 }
 
-const THRESHOLD: f64 = 4.0;
+const THRESHOLD: f32 = 4.0;
 
 impl Complex {
     /// Returns a mask describing which members of the Mandelbrot sequence
     /// haven't diverged yet
     #[inline]
-    fn undiverged(&self) -> m64s {
+    fn undiverged(&self) -> m32s {
         let Self { real: x, imag: y } = *self;
 
         let xx = x * x;
         let yy = y * y;
         let sum = xx + yy;
 
-        sum.le(f64s::splat(THRESHOLD))
+        sum.le(f32s::splat(THRESHOLD))
     }
 }
 
@@ -56,7 +55,7 @@ impl MandelbrotIter {
     /// number of lanes in a SIMD vector of doubles.
     fn count(mut self, iters: u32) -> u32s {
         let mut z = self.start;
-        let mut count = u64s::splat(0);
+        let mut count = u32s::splat(0);
         for _ in 0..iters {
             // Keep track of those lanes which haven't diverged yet. The other
             // ones will be masked off.
@@ -70,7 +69,7 @@ impl MandelbrotIter {
                 break;
             }
 
-            count += undiverged.select(u64s::splat(1), u64s::splat(0));
+            count += undiverged.select(u32s::splat(1), u32s::splat(0));
 
             z = self.next().unwrap();
         }
@@ -100,8 +99,8 @@ impl Iterator for MandelbrotIter {
     }
 }
 
-pub fn generate(min_x: f64, max_x: f64, min_y: f64, max_y: f64, width: usize, height: usize, iters: u32) -> Vec<u32> {
-    let block_size = f64s::lanes();
+pub fn generate(min_x: f32, max_x: f32, min_y: f32, max_y: f32, width: usize, height: usize, iters: u32) -> Vec<u32> {
+    let block_size = f32s::lanes();
 
     assert_eq!(
         width % block_size,
@@ -115,20 +114,20 @@ pub fn generate(min_x: f64, max_x: f64, min_y: f64, max_y: f64, width: usize, he
 
     // The initial X values are the same for every row.
     let xs = unsafe {
-        let dx = (max_x - min_x) / (width as f64);
-        let mut buf: Vec<f64s> = vec![f64s::splat(0.); width_in_blocks];
+        let dx = (max_x - min_x) / (width as f32);
+        let mut buf: Vec<f32s> = vec![f32s::splat(0.); width_in_blocks];
 
-        std::slice::from_raw_parts_mut(buf.as_mut_ptr() as *mut f64, width)
+        std::slice::from_raw_parts_mut(buf.as_mut_ptr() as *mut f32, width)
             .iter_mut()
             .enumerate()
             .for_each(|(j, x)| {
-                *x = min_x + dx * (j as f64);
+                *x = min_x + dx * (j as f32);
             });
 
         buf
     };
 
-    let dy = (max_y - min_y) / (height as f64);
+    let dy = (max_y - min_y) / (height as f32);
 
     let len = width_in_blocks * height;
     let mut out = Vec::with_capacity(len);
@@ -137,7 +136,7 @@ pub fn generate(min_x: f64, max_x: f64, min_y: f64, max_y: f64, width: usize, he
     }
 
     out.par_chunks_mut(width_in_blocks).enumerate().for_each(|(i, row)| {
-        let y = f64s::splat(min_y + dy * (i as f64));
+        let y = f32s::splat(min_y + dy * (i as f32));
         row.iter_mut().enumerate().for_each(|(j, count)| {
             let x = xs[j];
             let z = Complex { real: x, imag: y };
