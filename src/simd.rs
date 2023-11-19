@@ -44,7 +44,10 @@ struct MandelbrotIter {
 impl MandelbrotIter {
     /// Creates a new Mandelbrot sequence iterator for a given starting point
     fn new(start: Complex) -> Self {
-        Self { start, current: start }
+        Self {
+            start,
+            current: start,
+        }
     }
 
     /// Returns the number of iterations it takes for each member of the
@@ -83,7 +86,10 @@ impl Iterator for MandelbrotIter {
     /// Generates the next values in the sequence
     #[inline]
     fn next(&mut self) -> Option<Complex> {
-        let Complex { real: c_x, imag: c_y } = self.start;
+        let Complex {
+            real: c_x,
+            imag: c_y,
+        } = self.start;
         let Complex { real: x, imag: y } = self.current;
 
         let xx = x * x;
@@ -93,13 +99,25 @@ impl Iterator for MandelbrotIter {
         let new_x = c_x + (xx - yy);
         let new_y = c_y + (xy + xy);
 
-        self.current = Complex { real: new_x, imag: new_y };
+        self.current = Complex {
+            real: new_x,
+            imag: new_y,
+        };
 
         Some(self.current)
     }
 }
 
-pub fn generate(min_x: f32, max_x: f32, min_y: f32, max_y: f32, width: usize, height: usize, iters: u32) -> Vec<u32> {
+pub fn generate(
+    min_x: f32,
+    max_x: f32,
+    min_y: f32,
+    max_y: f32,
+    width: usize,
+    height: usize,
+    iters: u32,
+    parallel: bool,
+) -> Vec<u32> {
     let block_size = f32s::lanes();
 
     assert_eq!(
@@ -135,14 +153,29 @@ pub fn generate(min_x: f32, max_x: f32, min_y: f32, max_y: f32, width: usize, he
         out.set_len(len);
     }
 
-    out.par_chunks_mut(width_in_blocks).enumerate().for_each(|(i, row)| {
-        let y = f32s::splat(min_y + dy * (i as f32));
-        row.iter_mut().enumerate().for_each(|(j, count)| {
-            let x = xs[j];
-            let z = Complex { real: x, imag: y };
-            *count = MandelbrotIter::new(z).count(iters);
-        });
-    });
+    if parallel {
+        out.par_chunks_mut(width_in_blocks)
+            .enumerate()
+            .for_each(|(i, row)| {
+                let y = f32s::splat(min_y + dy * (i as f32));
+                row.iter_mut().enumerate().for_each(|(j, count)| {
+                    let x = xs[j];
+                    let z = Complex { real: x, imag: y };
+                    *count = MandelbrotIter::new(z).count(iters);
+                });
+            });
+    } else {
+        out.chunks_mut(width_in_blocks)
+            .enumerate()
+            .for_each(|(i, row)| {
+                let y = f32s::splat(min_y + dy * (i as f32));
+                row.iter_mut().enumerate().for_each(|(j, count)| {
+                    let x = xs[j];
+                    let z = Complex { real: x, imag: y };
+                    *count = MandelbrotIter::new(z).count(iters);
+                });
+            });
+    }
 
     // This is safe, we're transmuting from a more-aligned type to a
     // less-aligned one.
