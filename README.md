@@ -1,6 +1,8 @@
 ## About
 
-This is a small project to test the features of [PyO3](https://pyo3.rs/main/), the Python/Rust binding.
+This is a small project demonstrating using Rust to speedup Python. See my blog post
+[part 1](https://aspcompiler.github.io/posts/how-rust-x-speedup-over-python-1/) and
+[part 2](https://aspcompiler.github.io/posts/how-rust-x-speedup-over-python-2/).
 
 ## How to use
 
