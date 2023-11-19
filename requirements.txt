@@ -1,0 +1,4 @@
+maturin
+jupyterlab>=4.0.8
+matplotlib>=3.8.1
+numba>=0.58.1
